@@ -39,7 +39,7 @@ namespace NeedleBot {
             await file.WriteAsync("[");
 
             var first = true;
-            var client = new RestClient("http://example.com");
+            var client = new RestClient();
             while (current < end)
             {
                 if (first)
@@ -53,7 +53,7 @@ namespace NeedleBot {
 
                 var to = current.Add(step);
 
-                var url = $"{URL}?interval={Interval}&start={current.ToUnix()}&end={to.ToUnix()}";
+                var url = $"{URL}?interval={Interval}&start={current.ToUniversalTime().ToUnix()}&end={to.ToUniversalTime().ToUnix()}";
 
                 var req = new RestRequest(url, Method.GET);
                 var res = await client.ExecuteTaskAsync(req);
