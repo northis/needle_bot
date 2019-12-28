@@ -82,7 +82,9 @@ namespace NeedleBot
         {
             if (InstantProfitUsd > 0)
             {
-                Console.WriteLine($"fix the profit ${InstantProfitUsd} USD");
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"fix the profit ${InstantProfitUsd:F2} USD");
+                Console.ForegroundColor = ConsoleColor.White;
 
                 var res = await Config.SellBtc(price, Config.WalletBtc)
                     .ConfigureAwait(false);
@@ -90,6 +92,8 @@ namespace NeedleBot
                 Config.WalletUsd = res.WalletUsd;
                 Config.WalletBtc = res.WalletBtc;
                 Mode = ModeEnum.USD;
+
+                Console.WriteLine($"WalletUsd: {Config.WalletUsd:F2}; WalletBtc: {Config.WalletBtc:F5}\n");
             }
 
             SetDefaultState();
@@ -104,8 +108,9 @@ namespace NeedleBot
 
             if (price > _stopPriceUsd)
             {
-
-                Console.WriteLine($"buy BTC for ${_stopPriceUsd} USD");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"buy BTC for ${_stopPriceUsd:F2} USD");
+                Console.ForegroundColor = ConsoleColor.White;
                 var res = await Config.BuyBtc(
                         _stopPriceUsd, Config.TradeVolumeUsd)
                     .ConfigureAwait(false);
@@ -115,6 +120,8 @@ namespace NeedleBot
                 Config.ZeroProfitPriceUsd = res.PriceUsd;
                 State = StateEnum.DOWN_TRAIL_BUY;
                 Mode = ModeEnum.BTC;
+
+                Console.WriteLine($"WalletUsd: {Config.WalletUsd:F2}; WalletBtc:{Config.WalletBtc:F5}\n");
             }
 
             SetDefaultState();
@@ -209,7 +216,13 @@ namespace NeedleBot
 
                     if (SetTrailUp(price))
                     {
-                        Console.WriteLine($"Fix datetime is {dateTime}");
+                        var diff = _stopPriceUsd - _startPriceUsd;
+                        
+                        Console.ForegroundColor = ConsoleColor.DarkGreen;
+                        Console.WriteLine(
+                            $"SELL: {_startPriceUsd:F2}->{_stopPriceUsd:F2} ({diff:F2})\t{InstantProfitUsd:F2}$\t({_startDate}->{dateTime})");
+                        Console.ForegroundColor = ConsoleColor.White;
+
                         await FixProfitUp(price).ConfigureAwait(false);
                     }
 
@@ -229,8 +242,14 @@ namespace NeedleBot
 
                     if (SetTrailDown(price))
                     {
-                        Console.WriteLine($"Enter to BTC datetime is {dateTime}");
-                        await EnterToBtc(price).ConfigureAwait(false);;
+                        var diff = _stopPriceUsd - _startPriceUsd;
+
+                        Console.ForegroundColor = ConsoleColor.DarkRed;
+                        Console.WriteLine(
+                            $"BUY: {_startPriceUsd:F2}->{_stopPriceUsd:F2} ({diff:F2})\t({_startDate}->{dateTime})", Console.ForegroundColor);
+                        Console.ForegroundColor = ConsoleColor.White;
+
+                        await EnterToBtc(price).ConfigureAwait(false);
                     }
 
                     return;

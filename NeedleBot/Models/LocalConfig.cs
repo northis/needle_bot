@@ -10,15 +10,15 @@ namespace NeedleBot.Models
         public LocalConfig()
         {
             DetectDuration = TimeSpan.FromMinutes(1);
-            DetectPriceChangePercent = 0.1;
+            DetectPriceChangePercent = 100;
             
             WalletUsd = 0;
             TradeVolumeUsd = 100;
-            ZeroProfitPriceUsd = 7200;
+            ZeroProfitPriceUsd = 4000;
             Mode = ModeEnum.BTC;
             DealAllowanceUsd = 0;
             ExchangeFeePercent = 0.2;
-            StopPriceAllowanceUsd = 25;
+            StopPriceAllowanceUsd = 20;
 
             WalletBtc = Math.Ceiling(1000 * TradeVolumeUsd / ZeroProfitPriceUsd) / 1000;
         }
