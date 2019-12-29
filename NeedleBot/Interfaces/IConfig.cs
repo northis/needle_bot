@@ -7,7 +7,7 @@ namespace NeedleBot.Interfaces
     public interface IConfig
     {
         TimeSpan DetectDuration { get; set; }
-        double DetectPriceChangePercent { get; set; }
+        double DetectPriceChangeUsd { get; set; }
         double WalletBtc { get; set; }
         double WalletUsd { get; set; }
         double TradeVolumeUsd { get; set; }

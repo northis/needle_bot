@@ -25,6 +25,8 @@ namespace NeedleBot
         }
 
         public ModeEnum Mode { get; set; }
+        public int SellCount { get; private set; }
+        public int BuyCount { get; private set; }
 
         private double _startPriceUsd;
         private double _stopPriceUsd;
@@ -37,7 +39,7 @@ namespace NeedleBot
         public Trade(IConfig config)
         {
             Config = config;
-            ThresholdSpeedSec = Config.DetectPriceChangePercent / Config.DetectDuration.TotalSeconds;
+            ThresholdSpeedSec = Config.DetectPriceChangeUsd / Config.DetectDuration.TotalSeconds;
             State = StateEnum.INIT;
             Mode = ModeEnum.BTC;
         }
@@ -92,8 +94,9 @@ namespace NeedleBot
                 Config.WalletUsd = res.WalletUsd;
                 Config.WalletBtc = res.WalletBtc;
                 Mode = ModeEnum.USD;
-
-                Console.WriteLine($"WalletUsd: {Config.WalletUsd:F2}; WalletBtc: {Config.WalletBtc:F5}\n");
+                SellCount++;
+                Console.WriteLine(
+                    $"WalletUsd: {Config.WalletUsd:F2}; WalletBtc: {Config.WalletBtc:F5}; SellCount: {SellCount}\n");
             }
 
             SetDefaultState();
@@ -120,8 +123,9 @@ namespace NeedleBot
                 Config.ZeroProfitPriceUsd = res.PriceUsd;
                 State = StateEnum.DOWN_TRAIL_BUY;
                 Mode = ModeEnum.BTC;
+                BuyCount++;
 
-                Console.WriteLine($"WalletUsd: {Config.WalletUsd:F2}; WalletBtc:{Config.WalletBtc:F5}\n");
+                Console.WriteLine($"WalletUsd: {Config.WalletUsd:F2}; WalletBtc: {Config.WalletBtc:F5}; BuyCount: {BuyCount}\n");
             }
 
             SetDefaultState();

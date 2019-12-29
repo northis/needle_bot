@@ -34,6 +34,9 @@ namespace NeedleBot {
 
         public async Task LoadPrices(DateTime start, DateTime end, TimeSpan step)
         {
+            if (File.Exists(StoreFilePath))
+                return;
+
             var current = start;
             await using var file = File.CreateText(StoreFilePath);
             await file.WriteAsync("[");
