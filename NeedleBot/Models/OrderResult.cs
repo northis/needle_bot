@@ -9,5 +9,6 @@ namespace NeedleBot.Models
         public double VolumeBtc { get; set; }
         public double WalletBtc { get; set; }
         public double WalletUsd { get; set; }
+        public bool IsOrderSet { get; set; }
     }
 }

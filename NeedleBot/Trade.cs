@@ -41,7 +41,7 @@ namespace NeedleBot
             Config = config;
             ThresholdSpeedSec = Config.DetectPriceChangeUsd / Config.DetectDuration.TotalSeconds;
             State = StateEnum.INIT;
-            Mode = ModeEnum.BTC;
+            Mode = config.Mode;
         }
 
         private void SetDefaultState()
@@ -49,23 +49,18 @@ namespace NeedleBot
             State = Mode == ModeEnum.BTC ? StateEnum.BTC_DEF : StateEnum.USD_DEF;
         }
 
-        private bool ProcessSpeed(double speed)
+        private void ProcessSpeed(double speed)
         {
-            var isInSpeed = false;
             if (Mode == ModeEnum.BTC && speed > ThresholdSpeedSec)
             {
                 State = StateEnum.UP_SPEED;
-                //Console.WriteLine("enter the rocket, countdown");
-                isInSpeed = true;
+                 //Console.WriteLine("enter the rocket, countdown");
             }
             else if (Mode == ModeEnum.USD && -1 * speed > ThresholdSpeedSec)
             {
                 State = StateEnum.DOWN_SPEED;
-                //Console.WriteLine("get to the submarine, countdown");
-                isInSpeed = true;
+                 //Console.WriteLine("get to the submarine, countdown");
             }
-
-            return isInSpeed;
         }
 
         private double GetSpeed(double priceEnd, DateTime dateEnd)
@@ -90,6 +85,11 @@ namespace NeedleBot
 
                 var res = await Config.SellBtc(price, Config.WalletBtc)
                     .ConfigureAwait(false);
+                if (!res.IsOrderSet)
+                {
+                    SetDefaultState();
+                    return;
+                }
 
                 Config.WalletUsd = res.WalletUsd;
                 Config.WalletBtc = res.WalletBtc;
@@ -114,9 +114,13 @@ namespace NeedleBot
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"buy BTC for ${_stopPriceUsd:F2} USD");
                 Console.ForegroundColor = ConsoleColor.White;
-                var res = await Config.BuyBtc(
-                        _stopPriceUsd, Config.TradeVolumeUsd)
+                var res = await Config.BuyBtc(_stopPriceUsd, Config.TradeVolumeUsd)
                     .ConfigureAwait(false);
+                if (!res.IsOrderSet)
+                {
+                    SetDefaultState();
+                    return;
+                }
 
                 Config.WalletUsd = res.WalletUsd;
                 Config.WalletBtc = res.WalletBtc;
@@ -137,15 +141,15 @@ namespace NeedleBot
             {
                 _stopPriceUsd = price;
                 State = StateEnum.UP_TRAIL_SET;
-                return false;
+                return true;
             } 
             
             if (price > _stopPriceUsd - Config.StopPriceAllowanceUsd)
             {
-                return false;
+                return true;
             }
 
-            return true;
+            return false;
         }
 
         private bool SetTrailDown(double price)
@@ -154,15 +158,15 @@ namespace NeedleBot
             {
                 _stopPriceUsd = price;
                 State = StateEnum.DOWN_TRAIL_SET;
-                return false;
+                return true;
             }
 
             if (price < _stopPriceUsd + Config.StopPriceAllowanceUsd)
             {
-                return false;
+                return true;
             }
 
-            return true;
+            return false;
         }
 
         private async Task DecideInner(double price, DateTime dateTime)
@@ -170,7 +174,7 @@ namespace NeedleBot
             if (Mode == ModeEnum.BTC && Config.ZeroProfitPriceUsd > 0)
             {
                 var profit = Config.WalletBtc * (price - Config.ZeroProfitPriceUsd);
-                InstantProfitUsd = profit - FromExchangeFee(profit);
+                InstantProfitUsd = profit - FromExchangeFee(Config.TradeVolumeUsd);
             }
 
             switch (State)
@@ -191,25 +195,24 @@ namespace NeedleBot
                 case StateEnum.BTC_DEF:
                 case StateEnum.USD_DEF:
                 case StateEnum.INIT:
+
                     if (dateTime - _startDate >= Config.DetectDuration)
                     {
                         SetDefaultState();
                         var speed = GetSpeed(price, dateTime);
 
-                        var isInSpeed = ProcessSpeed(speed);
-                        if (isInSpeed)
-                        {
-                            _startPriceUsd = price;
-                        }
+                        ProcessSpeed(speed);
+
+                        if (_stopPriceUsd <= 0) 
+                            _stopPriceUsd = price;
+
+                        _startPriceUsd = price;
                         _startDate = dateTime;
                     }
 
                     return;
 
                 case StateEnum.UP_SPEED:
-                    SetTrailUp(price);
-                    return;
-
                 case StateEnum.UP_TRAIL_SET:
                     if (price < _startPriceUsd - Config.StopPriceAllowanceUsd)
                     {
@@ -218,7 +221,7 @@ namespace NeedleBot
                         return;
                     }
 
-                    if (SetTrailUp(price))
+                    if (!SetTrailUp(price))
                     {
                         var diff = _stopPriceUsd - _startPriceUsd;
                         
@@ -233,9 +236,6 @@ namespace NeedleBot
                     return;
 
                 case StateEnum.DOWN_SPEED:
-                    SetTrailDown(price);
-                    return;
-
                 case StateEnum.DOWN_TRAIL_SET:
                     if (price > _startPriceUsd + Config.StopPriceAllowanceUsd)
                     {
@@ -244,7 +244,7 @@ namespace NeedleBot
                         return;
                     }
 
-                    if (SetTrailDown(price))
+                    if (!SetTrailDown(price))
                     {
                         var diff = _stopPriceUsd - _startPriceUsd;
 

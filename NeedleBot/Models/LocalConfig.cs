@@ -11,7 +11,7 @@ namespace NeedleBot.Models
 
         public LocalConfig()
         {
-            DetectDuration = TimeSpan.FromMinutes(10);
+            DetectDuration = TimeSpan.FromMinutes(1);
             DetectPriceChangeUsd = 10;
             WalletUsd = 0;
             TradeVolumeUsd = 100;
@@ -19,7 +19,7 @@ namespace NeedleBot.Models
             DealAllowanceUsd = 0;
             ExchangeFeePercent = 0.2;
             StopPriceAllowanceUsd = 50;
-            ZeroProfitPriceUsd = 8500;
+            ZeroProfitPriceUsd = 0;
         }
 
         public TimeSpan DetectDuration { get; set; }
@@ -34,7 +34,7 @@ namespace NeedleBot.Models
             set
             {
                 _zeroProfitPriceUsd = value;
-                WalletBtc = Math.Ceiling(1000 * TradeVolumeUsd / value) / 1000;
+                // WalletBtc = Math.Ceiling(1000 * TradeVolumeUsd / value) / 1000;
             }
         }
 
@@ -58,7 +58,8 @@ namespace NeedleBot.Models
                    VolumeBtc = volumeBtc, 
                    VolumeUsd = volumeUsd, 
                    WalletBtc = walletBtc,
-                   WalletUsd = walletUsd
+                   WalletUsd = walletUsd,
+                   IsOrderSet = true
                };
            });
         }
@@ -68,8 +69,8 @@ namespace NeedleBot.Models
             return await Task.Run(() =>
             {
                 var volumeBtc = volumeUsd / price;
-                var walletBtc = WalletBtc + volumeBtc - volumeBtc * ExchangeFeePercent / 100;
-                var walletUsd = WalletUsd - volumeUsd;
+                var walletBtc = WalletBtc + volumeBtc;
+                var walletUsd = WalletUsd - volumeUsd - volumeUsd * ExchangeFeePercent / 100;
 
                 return new OrderResult
                 {
@@ -77,7 +78,8 @@ namespace NeedleBot.Models
                     VolumeBtc = volumeBtc, 
                     VolumeUsd = volumeUsd, 
                     WalletBtc = walletBtc,
-                    WalletUsd = walletUsd
+                    WalletUsd = walletUsd,
+                    IsOrderSet = true
                 };
             });
         }
