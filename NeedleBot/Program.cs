@@ -14,58 +14,54 @@ namespace NeedleBot
     {
         static void Main(string[] args)
         {
-            ProcessHistory().ConfigureAwait(false).GetAwaiter().GetResult();
-
+            ProcessHistoryBatch();
+            //ProcessHistorySingle().ConfigureAwait(false).GetAwaiter().GetResult();
             // AnalyzeReport();
             Console.ReadLine();
         }
 
         private const string REPORT_FILE = "report.txt";
-        
-        static async Task ProcessHistory()
+
+        static async Task ProcessHistorySingle()
         {
-            var oldTitle = Console.Title;
+            var history = new History("201912.json");
+            var trade =
+                new Trade(new LocalConfig());
+            
+            await TradeTask(history, trade, true);
+        }
+        
+        static void ProcessHistoryBatch()
+        {
             Console.SetOut(TextWriter.Null);
 
-            var maxDetectPriceChangeUsd = 200D;
-            var maxStopPriceAllowanceUsd = 200;
-            var total = maxDetectPriceChangeUsd * maxStopPriceAllowanceUsd / 100;
+            var maxDetectPriceChangeUsd = 30D;
+            var total = maxDetectPriceChangeUsd;
             var current = 0;
 
-            //for (var i = 1; i < 12; i++)
-            //{
-            //    var history = new History($"2019{i:00}.json");
+            var history = new History("201912.json");
+            //var startDate = new DateTime(2020, 1, 4, 18, 0, 0);
+            //var endDate = new DateTime(2020, 1, 5, 0, 0, 0);
+            //await history.LoadPrices(startDate, endDate, TimeSpan.FromDays(1)).ConfigureAwait(false);
 
-            //    var startDate = new DateTime(2019, i, 1, 0, 0, 0);
-            //    var endDate = new DateTime(2019, i + 1, 1, 0, 0, 0);
-            //    await history.LoadPrices(startDate, endDate, TimeSpan.FromDays(1));
-            //}
-            var history = new History("data.json");
-            var analysis = new ConcurrentBag<Tuple<int, int, double, int, int>>();
+            var analysis = new ConcurrentBag<Tuple<double, double, int, int>>();
             var tasks = new List<Task>();
 
-            async Task FuncStopPrice(int stopPriceAllowance)
+            async Task FuncStopPrice(double priceChange)
             {
-                for (var j = 0; j < maxStopPriceAllowanceUsd; j += 10)
+                var trade = new Trade(new LocalConfig
                 {
-                    var i1 = stopPriceAllowance;
-                    var j1 = j;
+                    DetectPriceChangeUsd = priceChange
+                });
 
-                    var trade = new Trade(new LocalConfig
-                    {
-                        DetectPriceChangeUsd = i1, 
-                        StopPriceAllowanceUsd = j1
-                    });
+                var profit = await TradeTask(history, trade, true);
+                analysis.Add(new Tuple<double, double, int, int>(priceChange, profit, trade.SellCount, trade.BuyCount));
 
-                    var profit = await TradeTask(history, trade, true);
-                    analysis.Add(new Tuple<int, int, double, int, int>(i1, j1, profit, trade.SellCount, trade.BuyCount));
-
-                    Interlocked.Increment(ref current);
-                    Console.Title = $"Calculating... {100 * current / total:F1}%";
-                }
+                Interlocked.Increment(ref current);
+                Console.Title = $"Calculating... {100 * current / total:F1}%";
             }
 
-            for (var i = 0; i < maxDetectPriceChangeUsd; i += 10)
+            for (var i = 0D; i < maxDetectPriceChangeUsd; i += 1)
             {
                 var iLocal = i;
                 var task = Task.Run(() => FuncStopPrice(iLocal));
@@ -73,27 +69,30 @@ namespace NeedleBot
             }
 
             Task.WaitAll(tasks.ToArray());
-            Console.Title = oldTitle;
 
-            var file = File.CreateText(REPORT_FILE);
-            foreach (var analysisItem in analysis.OrderByDescending(a=>a.Item4))
+            using (var file = File.CreateText(REPORT_FILE))
             {
-                await file.WriteLineAsync(
-                    $"{analysisItem.Item1}\t{analysisItem.Item2}\t{analysisItem.Item3:F2}\t{analysisItem.Item4}\t{analysisItem.Item5}");
+                foreach (var analysisItem in analysis.OrderByDescending(a => a.Item2))
+                {
+                    file.WriteLine(
+                        $"{analysisItem.Item1:F1}\t{analysisItem.Item2:F1}\t{analysisItem.Item3:F2}\t{analysisItem.Item4}");
+                }
             }
+            Console.Title = "Done";
         }
 
         static async Task<double> TradeTask(History history, Trade trade, bool autoSetZeroPrice = false)
         {
             //trade.OnStateChanged += Trade_OnStateChanged;
-            
-            var prices = history.GetPrices();
+            var startDate = new DateTime(2019, 10, 1);
+
+            var prices = history.GetPrices();//.SkipWhile(a => a.Date < startDate).ToArray();
             if (autoSetZeroPrice && trade.Config.Mode == ModeEnum.BTC)
             {
-                trade.Config.ZeroProfitPriceUsd = prices.First().Price + 100;
+                trade.Config.ZeroProfitPriceUsd = prices.First().Price + 10;
                 if (trade.Config.WalletBtc <= 0)
                 {
-                    trade.Config.WalletBtc = trade.Config.TradeVolumeUsd / trade.Config.ZeroProfitPriceUsd;
+                    trade.Config.WalletBtc = (trade.Config.TradeVolumeUsd + 1) / trade.Config.ZeroProfitPriceUsd;
                 }
             }
 

@@ -7,18 +7,14 @@ namespace NeedleBot.Models
 {
     public class LocalConfig : IConfig
     {
-        private double _zeroProfitPriceUsd;
-
         public LocalConfig()
         {
             DetectDuration = TimeSpan.FromMinutes(1);
-            DetectPriceChangeUsd = 10;
-            WalletUsd = 0;
+            DetectPriceChangeUsd = 2.5;
+            WalletUsd = 101;
             TradeVolumeUsd = 100;
-            Mode = ModeEnum.BTC;
-            DealAllowanceUsd = 0;
+            Mode = ModeEnum.USD;
             ExchangeFeePercent = 0.2;
-            StopPriceAllowanceUsd = 50;
             ZeroProfitPriceUsd = 0;
         }
 
@@ -27,22 +23,9 @@ namespace NeedleBot.Models
         public double WalletBtc { get; set; }
         public double WalletUsd { get; set; }
         public double TradeVolumeUsd { get; set; }
-
-        public double ZeroProfitPriceUsd
-        {
-            get => _zeroProfitPriceUsd;
-            set
-            {
-                _zeroProfitPriceUsd = value;
-                // WalletBtc = Math.Ceiling(1000 * TradeVolumeUsd / value) / 1000;
-            }
-        }
-
-        public DateTime StartDate { get; set; }
+        public double ZeroProfitPriceUsd { get; set; }
         public ModeEnum Mode { get; set; }
         public double ExchangeFeePercent { get; set; }
-        public double DealAllowanceUsd { get; set; }
-        public double StopPriceAllowanceUsd { get; set; }
 
         public async Task<IOrderResult> SellBtc(double priceUsd, double volumeBtc)
         {
@@ -71,6 +54,11 @@ namespace NeedleBot.Models
                 var volumeBtc = volumeUsd / price;
                 var walletBtc = WalletBtc + volumeBtc;
                 var walletUsd = WalletUsd - volumeUsd - volumeUsd * ExchangeFeePercent / 100;
+                
+                if (walletUsd < 0)
+                {
+
+                }
 
                 return new OrderResult
                 {

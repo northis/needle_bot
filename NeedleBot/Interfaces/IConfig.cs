@@ -12,11 +12,8 @@ namespace NeedleBot.Interfaces
         double WalletUsd { get; set; }
         double TradeVolumeUsd { get; set; }
         double ZeroProfitPriceUsd { get; set; }
-        DateTime StartDate { get; set; }
         ModeEnum Mode { get; set; }
         double ExchangeFeePercent { get; set; }
-        double DealAllowanceUsd { get; set; }
-        double StopPriceAllowanceUsd { get; set; }
         Task<IOrderResult> SellBtc(double priceUsd, double volumeBtc);
         Task<IOrderResult> BuyBtc(double price, double volumeUsd);
     }
