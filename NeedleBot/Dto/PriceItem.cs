@@ -14,6 +14,6 @@ namespace NeedleBot.Dto {
         public double Price { get; set; }
 
         [DataMember]
-        public DateTime Date { get; set; }
+        public DateTimeOffset Date { get; set; }
     }
 }

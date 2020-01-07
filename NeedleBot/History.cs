@@ -32,7 +32,7 @@ namespace NeedleBot {
             return items;
         }
 
-        public async Task LoadPrices(DateTime start, DateTime end, TimeSpan step)
+        public async Task LoadPrices(DateTimeOffset start, DateTimeOffset end, TimeSpan step)
         {
             if (File.Exists(StoreFilePath))
                 return;

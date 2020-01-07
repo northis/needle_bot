@@ -10,10 +10,10 @@ namespace NeedleBot.Models
         public LocalConfig()
         {
             DetectDuration = TimeSpan.FromMinutes(1);
-            DetectPriceChangeUsd = 2.5;
-            WalletUsd = 101;
+            DetectPriceChangeUsd = 10;
+            WalletUsd = 0;
             TradeVolumeUsd = 100;
-            Mode = ModeEnum.USD;
+            Mode = ModeEnum.BTC;
             ExchangeFeePercent = 0.2;
             ZeroProfitPriceUsd = 0;
         }
@@ -54,11 +54,6 @@ namespace NeedleBot.Models
                 var volumeBtc = volumeUsd / price;
                 var walletBtc = WalletBtc + volumeBtc;
                 var walletUsd = WalletUsd - volumeUsd - volumeUsd * ExchangeFeePercent / 100;
-                
-                if (walletUsd < 0)
-                {
-
-                }
 
                 return new OrderResult
                 {

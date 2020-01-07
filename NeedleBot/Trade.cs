@@ -11,14 +11,14 @@ namespace NeedleBot
     public class Trade
     {
         public IConfig Config { get; }
-
         public double ThresholdSpeedSec { get; }
         public double InstantProfitUsd { get; set; }
         public double AvgPrice { get; private set; }
         public ModeEnum Mode { get; set; }
         public int SellCount { get; private set; }
         public int BuyCount { get; private set; }
-        public double BollingerBandsD { get; set; } = 10;
+        public double BollingerBandsD { get; set; } = 19;
+        public double StopPercent { get; set; } = 3.4;
 
         public StateEnum State
         {
@@ -35,7 +35,7 @@ namespace NeedleBot
 
         private double _startPriceUsd;
         private double _stopPriceUsd;
-        private DateTime _startDate;
+        private DateTimeOffset _startDate;
         private StateEnum _state;
         private double _yDiffSum;
         private double _sigma;
@@ -57,6 +57,11 @@ namespace NeedleBot
                 SetAveragePrice(historyItem.Price);
         }
 
+        private double Stop(double price)
+        {
+            return price * StopPercent / 100;
+        }
+
         private void SetDefaultState()
         {
             State = Mode == ModeEnum.BTC ? StateEnum.BTC_DEF : StateEnum.USD_DEF;
@@ -68,7 +73,7 @@ namespace NeedleBot
                 AvgPrice = (AvgPrice + price) / 2;
             else
                 AvgPrice = price;
-
+            //prev prices to buffer - n
             _n++;
             var diff = price - AvgPrice;
             var diffSqu = diff * diff;
@@ -76,42 +81,28 @@ namespace NeedleBot
             _yDiffSum += diffSqu;
         }
 
-        private void ProcessSpeed(double price, double speed)
+        private void ProcessSpeed(double price, DateTimeOffset dateTime)
         {
-            if (Mode == ModeEnum.BTC && speed > ThresholdSpeedSec)
+            if (Mode == ModeEnum.BTC && price > ThresholdSpeedSec)
             {
                 State = StateEnum.UP_SPEED;
-                _stopPriceUsd = price - _sigma;
+                _stopPriceUsd = price - Stop(price);
 
-                Console.WriteLine("enter the rocket, countdown");
+                Logger.WriteExtra($"{dateTime} enter the rocket, countdown");
             }
-            else if (Mode == ModeEnum.USD && -speed > ThresholdSpeedSec)
+            else if (Mode == ModeEnum.USD && price < AvgPrice - _sigma)
             {
-               State = StateEnum.DOWN_SPEED;
-               _stopPriceUsd = price + _sigma;
-               Console.WriteLine("get to the submarine, countdown");
+                State = StateEnum.DOWN_SPEED;
+                _stopPriceUsd = price + Stop(price);
+                Logger.WriteExtra($"{dateTime} get to the submarine, countdown");
             }
         }
 
-        private double GetSpeed(double priceEnd, DateTime dateEnd)
-        {
-            var duration = (dateEnd - _startDate).TotalSeconds;
-            if (duration > 0)
-            {
-                var diff = priceEnd - _startPriceUsd;
-                return diff / duration;
-            }
-
-            return 0;
-        }
-
-        private async Task FixProfitUp(double price)
+        private async Task FixProfitUp(double price, DateTimeOffset dateTime)
         {
             if (InstantProfitUsd > 0)
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"fix the profit ${InstantProfitUsd:F2} USD");
-                Console.ForegroundColor = ConsoleColor.White;
+                Logger.WriteMain($"{dateTime} fix the profit ${InstantProfitUsd:F2} USD", ConsoleColor.Green);
 
                 var res = await Config.SellBtc(price, Config.WalletBtc)
                     .ConfigureAwait(false);
@@ -125,14 +116,13 @@ namespace NeedleBot
                 Config.WalletBtc = res.WalletBtc;
                 Mode = ModeEnum.USD;
                 SellCount++;
-                Console.WriteLine(
-                    $"WalletUsd: {Config.WalletUsd:F2}; WalletBtc: {Config.WalletBtc:F5}; SellCount: {SellCount}\n");
+                Logger.WriteMain($"WalletUsd: {Config.WalletUsd:F2}; WalletBtc: {Config.WalletBtc:F5}; SellCount: {SellCount}\n");
             }
 
             SetDefaultState();
         }
         
-        private async Task EnterToBtc(double price)
+        private async Task EnterToBtc(double price, DateTimeOffset dateTime)
         {
             if (Config.TradeVolumeUsd > Config.WalletUsd)
             {
@@ -141,11 +131,9 @@ namespace NeedleBot
 
             var isMoneyEnough = Config.WalletUsd > Config.TradeVolumeUsd + FromExchangeFee(Config.TradeVolumeUsd);
 
-            if (price > AvgPrice - _sigma && isMoneyEnough)
+            if (isMoneyEnough)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"buy BTC for ${price:F2} USD");
-                Console.ForegroundColor = ConsoleColor.White;
+                Logger.WriteMain($"{dateTime} buy BTC for ${price:F2} USD", ConsoleColor.Red);
                 var res = await Config.BuyBtc(price, Config.TradeVolumeUsd)
                     .ConfigureAwait(false);
                 if (!res.IsOrderSet)
@@ -160,8 +148,7 @@ namespace NeedleBot
                 Mode = ModeEnum.BTC;
                 BuyCount++;
 
-                Console.WriteLine(
-                    $"WalletUsd: {Config.WalletUsd:F2}; WalletBtc: {Config.WalletBtc:F5}; BuyCount: {BuyCount}\n");
+                Logger.WriteMain($"WalletUsd: {Config.WalletUsd:F2}; WalletBtc: {Config.WalletBtc:F5}; BuyCount: {BuyCount}\n");
             }
 
             SetDefaultState();
@@ -169,13 +156,13 @@ namespace NeedleBot
 
         private bool SetTrailUp(double price)
         {
-            if (price > AvgPrice + _sigma)
+            if (price > _stopPriceUsd + Stop(price))
             {
                 _stopPriceUsd = price;
                 return true;
             } 
             
-            if (price > _stopPriceUsd - _sigma)
+            if (price > _stopPriceUsd - Stop(price))
             {
                 return true;
             }
@@ -185,13 +172,13 @@ namespace NeedleBot
 
         private bool SetTrailDown(double price)
         {
-            if (price < _stopPriceUsd - _sigma || _stopPriceUsd <= 0)
+            if (price < _stopPriceUsd - Stop(price) || _stopPriceUsd <= 0)
             {
                 _stopPriceUsd = price;
                 return true;
             }
 
-            if (price < _stopPriceUsd + _sigma)
+            if (price < _stopPriceUsd + Stop(price))
             {
                 return true;
             }
@@ -199,7 +186,7 @@ namespace NeedleBot
             return false;
         }
 
-        private async Task DecideInner(double price, DateTime dateTime)
+        private async Task DecideInner(double price, DateTimeOffset dateTime)
         {
             SetAveragePrice(price);
             if (Mode == ModeEnum.BTC && Config.ZeroProfitPriceUsd > 0)
@@ -221,23 +208,19 @@ namespace NeedleBot
                 case StateEnum.USD_DEF:
                 case StateEnum.INIT:
 
-                    if (dateTime - _startDate >= Config.DetectDuration)
-                    {
-                        SetDefaultState();
-                        var speed = GetSpeed(price, dateTime);
+                    SetDefaultState();
+                    ProcessSpeed(price, dateTime);
 
-                        ProcessSpeed(price, speed);
-
-                        _startPriceUsd = price;
-                        _startDate = dateTime;
-                    }
+                    _startPriceUsd = price;
+                    _startDate = dateTime;
 
                     return;
 
                 case StateEnum.UP_SPEED:
                     if (price < _startPriceUsd - _sigma)
                     {
-                        Console.WriteLine($"ok, cancel the launch, price ${price:F2} is lower than {_startPriceUsd:F2}");
+                        Logger.WriteExtra(
+                            $"{dateTime} ok, cancel the launch, price ${price:F2} is lower than {_startPriceUsd:F2}");
                         SetDefaultState();
                         return;
                     }
@@ -245,13 +228,10 @@ namespace NeedleBot
                     if (!SetTrailUp(price))
                     {
                         var diff = _stopPriceUsd - _startPriceUsd;
-                        
-                        Console.ForegroundColor = ConsoleColor.DarkGreen;
-                        Console.WriteLine(
-                            $"SELL: {_startPriceUsd:F2}->{_stopPriceUsd:F2} ({diff:F2})\t{InstantProfitUsd:F2}$\t({_startDate}->{dateTime})");
-                        Console.ForegroundColor = ConsoleColor.White;
 
-                        await FixProfitUp(price).ConfigureAwait(false);
+                        Logger.WriteExtra($"{dateTime} SELL: {_startPriceUsd:F2}->{_stopPriceUsd:F2} ({diff:F2})\t{InstantProfitUsd:F2}$\t({_startDate}->{dateTime})", ConsoleColor.DarkGreen);
+
+                        await FixProfitUp(price, dateTime).ConfigureAwait(false);
                     }
 
                     return;
@@ -259,47 +239,45 @@ namespace NeedleBot
                 case StateEnum.DOWN_SPEED:
                     if (price > _startPriceUsd + _sigma)
                     {
-                        Console.WriteLine($"ok, cancel the dive, price ${price:F2} is higher than {_startPriceUsd:F2}");
+                        Logger.WriteExtra($"{dateTime} ok, cancel the dive, price ${price:F2} is higher than {_startPriceUsd:F2}");
                         SetDefaultState();
                         return;
                     }
 
-                    if (!SetTrailDown(price))
+                    var gotTrail = !SetTrailDown(price);
+                    if (gotTrail)
                     {
+
                         var diff = _stopPriceUsd - _startPriceUsd;
 
-                        Console.ForegroundColor = ConsoleColor.DarkRed;
-                        Console.WriteLine(
-                            $"BUY: {_startPriceUsd:F2}->{_stopPriceUsd:F2} ({diff:F2})\t({_startDate}->{dateTime})",
-                            Console.ForegroundColor);
-                        Console.ForegroundColor = ConsoleColor.White;
+                        Logger.WriteExtra($"{dateTime} BUY: {_startPriceUsd:F2}->{_stopPriceUsd:F2} ({diff:F2})\t({_startDate}->{dateTime})", ConsoleColor.DarkRed);
 
-                        await EnterToBtc(price).ConfigureAwait(false);
+                        await EnterToBtc(price, dateTime).ConfigureAwait(false);
                     }
 
                     return;
             }
         }
 
-        public async Task Decide(double price, DateTime dateTime)
+        public async Task Decide(double price, DateTimeOffset dateTime)
         {
             if (dateTime == default)
             {
-                Console.WriteLine("dateTime isn't set");
+                Logger.WriteMain("dateTime isn't set");
                 State = StateEnum.ERROR;
                 return;
             }
 
             if (price <= 0)
             {
-                Console.WriteLine("price isn't positive");
+                Logger.WriteMain("price isn't positive");
                 State = StateEnum.ERROR;
                 return;
             }
 
             if (_startPriceUsd <= 0 || _startDate == default)
             {
-                Console.WriteLine("setting the integration values");
+                Logger.WriteMain("setting the integration values");
                 _startPriceUsd = price;
                 _startDate = dateTime;
             }
