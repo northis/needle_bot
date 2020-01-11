@@ -18,7 +18,7 @@ namespace NeedleBot
             //{
             //    ProcessHistoryBatch($"2019{i:D2}.json");
             //}
-            //ProcessHistoryBatch("data.json");
+            //ProcessHistoryBatch("edata.json");
             ProcessHistorySingle().ConfigureAwait(false).GetAwaiter().GetResult();
             // AnalyzeReport();
             Console.ReadLine();
@@ -28,10 +28,14 @@ namespace NeedleBot
 
         static async Task ProcessHistorySingle()
         {
-            var history = new History("data.json");
+            var history = new History("edata.json", 1);
+            var historyPre = new History("pre202001-1.json");
             var trade =
-                new Trade(new LocalConfig());
-
+                new Trade(new LocalConfig(historyPre));
+            Logger.LogLevel = LogLevel.Debug;
+            var startDate = new DateTimeOffset(2019, 12, 31, 0, 0, 0, TimeSpan.Zero);
+            var endDate = new DateTimeOffset(2020, 1, 10, 0, 0, 0, TimeSpan.Zero);
+            await history.LoadPrices(startDate, endDate, TimeSpan.FromDays(1)).ConfigureAwait(false);
             await TradeTask(history, trade, true);
         }
         
@@ -39,24 +43,22 @@ namespace NeedleBot
         {
             Console.SetOut(TextWriter.Null);
 
-            var bollingerBands = 30D;
-            var stopPercent = 5D;
-            var total = bollingerBands * stopPercent * 10;
+            var bollingerBands = 10D;
+            var stopPercent = 50;
+            var total = bollingerBands * stopPercent*2;
             var current = 0;
 
-            var history = new History(fileName);
-            //var startDate = new DateTimeOffset(2020, 1, 4, 18, 0, 0, TimeSpan.Zero);
-            //var endDate = new DateTimeOffset(2020, 1, 5, 0, 0, 0, TimeSpan.Zero);
-            //await history.LoadPrices(startDate, endDate, TimeSpan.FromDays(1)).ConfigureAwait(false);
+            var history = new History(fileName, 1);
+            var historyPre = new History("pre" + fileName);
 
             var analysis = new ConcurrentBag<Tuple<double, double, double, int, int>>();
             var tasks = new List<Task>();
 
             async Task FuncStopPrice(double i)
             {
-                for (double j = 0; j < stopPercent; j+=0.1)
+                for (double j = 1; j <= stopPercent; j++)
                 {
-                    var trade = new Trade(new LocalConfig()) {BollingerBandsD = i, StopPercent = j};
+                    var trade = new Trade(new LocalConfig(historyPre) { BollingerBandsD = i, StopUsd = j });
 
                     var profit = await TradeTask(history, trade, true);
                     analysis.Add(
@@ -67,7 +69,7 @@ namespace NeedleBot
                 }
             }
 
-            for (var i = 0D; i < bollingerBands; i += 1)
+            for (var i = 0.5; i <= bollingerBands; i+=0.5)
             {
                 var iLocal = i;
                 var task = Task.Run(() => FuncStopPrice(iLocal));
@@ -90,9 +92,7 @@ namespace NeedleBot
         static async Task<double> TradeTask(History history, Trade trade, bool autoSetZeroPrice = false)
         {
             //trade.OnStateChanged += Trade_OnStateChanged;
-            //var startDate = new DateTimeOffset(2019, 7, 20, 0, 0, 0, TimeSpan.Zero);
-
-            var prices = history.GetPrices();//.SkipWhile(a => a.Date < startDate).ToArray();
+            var prices = history.GetPrices();
             if (autoSetZeroPrice && trade.Config.Mode == ModeEnum.BTC)
             {
                 trade.Config.ZeroProfitPriceUsd = prices.First().Price + 10;
@@ -109,7 +109,7 @@ namespace NeedleBot
 
             foreach (var priceItem in prices)
             {
-                await trade.Decide(priceItem.Price, priceItem.Date).ConfigureAwait(false);
+                await trade.Decide(priceItem).ConfigureAwait(false);
             }
 
             var last = prices.Last();

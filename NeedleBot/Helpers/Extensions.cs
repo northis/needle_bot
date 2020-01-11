@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Linq;
+using Newtonsoft.Json.Linq;
 
 namespace NeedleBot.Helpers
 {
@@ -7,7 +9,17 @@ namespace NeedleBot.Helpers
         public static long ToUnix(this DateTimeOffset dateTime)
         {
             var res = (long) dateTime.Subtract(new DateTimeOffset(1970, 1, 1, 0, 0, 0, dateTime.Offset))
-                .TotalMilliseconds;
+                .TotalSeconds;
+            return res;
+        }
+        public static DateTimeOffset FromUnixDate(this string dateTime)
+        {
+            var res = DateTimeOffset.FromUnixTimeSeconds(long.Parse(dateTime));
+            return res;
+        }
+        public static JToken[] GetChildrenByName(this JObject mainJson, string name)
+        {
+            var res = mainJson.Children().First(a => ((JProperty)a).Name == name).Values().ToArray();
             return res;
         }
     }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using NeedleBot.Dto;
 using NeedleBot.Enums;
 using NeedleBot.Interfaces;
 
@@ -7,25 +8,36 @@ namespace NeedleBot.Models
 {
     public class LocalConfig : IConfig
     {
-        public LocalConfig()
+        private readonly History _history;
+
+        public LocalConfig(History history)
         {
+            _history = history;
             DetectDuration = TimeSpan.FromMinutes(1);
-            DetectPriceChangeUsd = 10;
+            AverageDuration = TimeSpan.FromHours(1);
             WalletUsd = 0;
             TradeVolumeUsd = 100;
             Mode = ModeEnum.BTC;
             ExchangeFeePercent = 0.2;
             ZeroProfitPriceUsd = 0;
+            BollingerBandsD = 4;
+            StopUsd = 30;
+            OrderStopMarginPercent = 0.05; //TODO
+            AvgBufferLength = 20;
         }
 
         public TimeSpan DetectDuration { get; set; }
-        public double DetectPriceChangeUsd { get; set; }
+        public TimeSpan AverageDuration { get; set; }
         public double WalletBtc { get; set; }
         public double WalletUsd { get; set; }
         public double TradeVolumeUsd { get; set; }
         public double ZeroProfitPriceUsd { get; set; }
         public ModeEnum Mode { get; set; }
         public double ExchangeFeePercent { get; set; }
+        public double BollingerBandsD { get; set; }
+        public double StopUsd { get; set; }
+        public double OrderStopMarginPercent { get; set; }
+        public int AvgBufferLength { get; set; }
 
         public async Task<IOrderResult> SellBtc(double priceUsd, double volumeBtc)
         {
@@ -65,6 +77,12 @@ namespace NeedleBot.Models
                     IsOrderSet = true
                 };
             });
+        }
+
+        public async Task<PriceItem[]> GetHistory(DateTimeOffset start, DateTimeOffset end)
+        {
+            await _history.LoadPrices(start, end, AverageDuration).ConfigureAwait(false);
+            return _history.GetPrices();
         }
     }
 }

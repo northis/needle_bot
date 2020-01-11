@@ -1,31 +1,23 @@
 ﻿using System;
-using System.Globalization;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace NeedleBot.Helpers
 {
-    public class DoubleConverter : JsonConverter
+    public class DateConverter : JsonConverter
     {
         public override bool CanConvert(Type objectType)
         {   
-            return objectType == typeof(double);
+            return objectType == typeof(DateTimeOffset);
         }
 
         public override object ReadJson(JsonReader reader, Type objectType,
             object existingValue, JsonSerializer serializer)
         {
             var token = JToken.Load(reader);
-            var val = StringToDouble(token.ToString());
+            var val = token.ToString().FromUnixDate();
 
             return val;
-        }
-
-        public static double StringToDouble(string str)
-        {
-            var tokenStr = str.Replace(",", ".");
-            double.TryParse(tokenStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double d);
-            return d;
         }
 
         public override void WriteJson(JsonWriter writer, object value,
