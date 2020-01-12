@@ -3,6 +3,7 @@ using Newtonsoft.Json;
 using RestSharp;
 using System;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NeedleBot.Helpers;
@@ -10,17 +11,17 @@ using Newtonsoft.Json.Linq;
 
 namespace NeedleBot {
     public class History {
-        public const string URL = "https://tvc4.forexpros.com/0e1949eecbcf379ebf4831347732c138/1578665287/7/7/18/history?symbol=1031677";
+        private readonly string _interval;
+        public const string URL = "https://cex.io/api/ohlcv/hd/";
 
-        public History(string storeFile = "history.json", int interval = 15)
+        public History(string storeFile = "history.json", string interval = "data1m")
         {
-            Interval = interval;
+            _interval = interval;
             var currentDirectory = Directory.GetCurrentDirectory();
             StoreFilePath = Path.Combine(currentDirectory, storeFile);
         }
 
         public string StoreFilePath { get; }
-        public int Interval { get; }
 
         private PriceItem[] _prices;
 
@@ -39,7 +40,7 @@ namespace NeedleBot {
             return _prices;
         }
 
-        public async Task LoadPrices(DateTimeOffset start, DateTimeOffset end, TimeSpan step)
+        public async Task LoadPrices(DateTimeOffset start, DateTimeOffset end)
         {
             if (File.Exists(StoreFilePath))
                 return;
@@ -50,6 +51,7 @@ namespace NeedleBot {
 
             var first = true;
             var client = new RestClient();
+            var step = TimeSpan.FromDays(1);
             while (current < end)
             {
                 if (first)
@@ -62,32 +64,33 @@ namespace NeedleBot {
                 }
 
                 var to = current.Add(step);
-
-                var url = $"{URL}&resolution={Interval}&from={current.ToUniversalTime().ToUnix()}&to={to.ToUniversalTime().ToUnix()}";
+                //https://cex.io/api/ohlcv/hd/20190111/BTC/USD
+                var url = $"{URL}{current:yyyyMMdd}/BTC/USD";
 
                 var req = new RestRequest(url, Method.GET);
                 var res = await client.ExecuteTaskAsync(req);
                 var json = JObject.Parse(res.Content);
 
-                var times = json.GetChildrenByName("t");
-                var opens = json.GetChildrenByName("o");
-                var closes = json.GetChildrenByName("c");
-                var highs = json.GetChildrenByName("h");
-                var lows = json.GetChildrenByName("l");
+                var strValue =
+                    ((JProperty) json.Children().First(a => ((JProperty) a).Name == _interval))
+                    .First.Value<string>().Replace("[[","").Replace("]]", "");
+                var items = strValue.Split("],[", StringSplitOptions.RemoveEmptyEntries);
 
                 var sb = new StringBuilder();
-                for (var i = 0; i < times.LongLength; i++)
+                for (var i = 0; i < items.Length; i++)
                 {
+                    var array = items[i].Split(",", StringSplitOptions.RemoveEmptyEntries);
                     var obj = new JObject(
-                        new JProperty("t", times[i]),
-                        new JProperty("o", opens[i]),
-                        new JProperty("c", closes[i]),
-                        new JProperty("h", highs[i]),
-                        new JProperty("l", lows[i]));
+                        new JProperty("t", array[0]),
+                        new JProperty("h", array[1]),
+                        new JProperty("l", array[2]),
+                        new JProperty("o", array[3]),
+                        new JProperty("c", array[4]),
+                        new JProperty("v", array[5]));
 
                     sb.Append(obj);
 
-                    if (i < times.LongLength - 1)
+                    if (i < items.Length - 1)
                         sb.Append(",\n");
                 }
 

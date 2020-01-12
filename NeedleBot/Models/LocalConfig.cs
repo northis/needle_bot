@@ -14,14 +14,14 @@ namespace NeedleBot.Models
         {
             _history = history;
             DetectDuration = TimeSpan.FromMinutes(1);
-            AverageDuration = TimeSpan.FromHours(1);
+            AverageDuration = TimeSpan.FromDays(1);
             WalletUsd = 0;
             TradeVolumeUsd = 100;
             Mode = ModeEnum.BTC;
             ExchangeFeePercent = 0.2;
             ZeroProfitPriceUsd = 0;
             BollingerBandsD = 4;
-            StopUsd = 30;
+            StopUsd = 40;
             OrderStopMarginPercent = 0.05; //TODO
             AvgBufferLength = 20;
         }
@@ -81,7 +81,7 @@ namespace NeedleBot.Models
 
         public async Task<PriceItem[]> GetHistory(DateTimeOffset start, DateTimeOffset end)
         {
-            await _history.LoadPrices(start, end, AverageDuration).ConfigureAwait(false);
+            await _history.LoadPrices(start, end).ConfigureAwait(false);
             return _history.GetPrices();
         }
     }

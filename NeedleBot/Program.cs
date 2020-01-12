@@ -18,7 +18,7 @@ namespace NeedleBot
             //{
             //    ProcessHistoryBatch($"2019{i:D2}.json");
             //}
-            //ProcessHistoryBatch("edata.json");
+            //ProcessHistoryBatch("data.json");
             ProcessHistorySingle().ConfigureAwait(false).GetAwaiter().GetResult();
             // AnalyzeReport();
             Console.ReadLine();
@@ -28,14 +28,14 @@ namespace NeedleBot
 
         static async Task ProcessHistorySingle()
         {
-            var history = new History("edata.json", 1);
-            var historyPre = new History("pre202001-1.json");
+            var history = new History("data.json");
+            var historyPre = new History("predata.json", "data1h");
             var trade =
                 new Trade(new LocalConfig(historyPre));
             Logger.LogLevel = LogLevel.Debug;
-            var startDate = new DateTimeOffset(2019, 12, 31, 0, 0, 0, TimeSpan.Zero);
-            var endDate = new DateTimeOffset(2020, 1, 10, 0, 0, 0, TimeSpan.Zero);
-            await history.LoadPrices(startDate, endDate, TimeSpan.FromDays(1)).ConfigureAwait(false);
+            //var startDate = new DateTimeOffset(2019, 7, 1, 0, 0, 0, TimeSpan.Zero);
+            //var endDate = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero);
+            //await history.LoadPrices(startDate, endDate).ConfigureAwait(false);
             await TradeTask(history, trade, true);
         }
         
@@ -48,8 +48,8 @@ namespace NeedleBot
             var total = bollingerBands * stopPercent*2;
             var current = 0;
 
-            var history = new History(fileName, 1);
-            var historyPre = new History("pre" + fileName);
+            var history = new History(fileName);
+            var historyPre = new History("pre" + fileName, "data1h");
 
             var analysis = new ConcurrentBag<Tuple<double, double, double, int, int>>();
             var tasks = new List<Task>();

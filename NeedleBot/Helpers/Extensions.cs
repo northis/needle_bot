@@ -17,10 +17,5 @@ namespace NeedleBot.Helpers
             var res = DateTimeOffset.FromUnixTimeSeconds(long.Parse(dateTime));
             return res;
         }
-        public static JToken[] GetChildrenByName(this JObject mainJson, string name)
-        {
-            var res = mainJson.Children().First(a => ((JProperty)a).Name == name).Values().ToArray();
-            return res;
-        }
     }
 }

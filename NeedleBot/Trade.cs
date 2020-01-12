@@ -119,17 +119,17 @@ namespace NeedleBot
 
         private void ProcessSpeed(PriceItem priceItem)
         {
-            if (Mode == ModeEnum.BTC && priceItem.Price > AvgPrice + _sigma)
+            if (Mode == ModeEnum.BTC && (priceItem.Price > Config.ZeroProfitPriceUsd || priceItem.Price > AvgPrice + _sigma))
             {
                 State = StateEnum.UP_SPEED;
-                _stopPriceUsd = priceItem.Price - Config.StopUsd;
+                _stopPriceUsd = _startPriceUsd;
 
                 Logger.WriteExtra($"{priceItem.Date} enter the rocket, countdown ({priceItem.Price:F2})");
             }
             else if (Mode == ModeEnum.USD && priceItem.Price < AvgPrice - _sigma)
             {
                 State = StateEnum.DOWN_SPEED;
-                _stopPriceUsd = priceItem.Price + Config.StopUsd;
+                _stopPriceUsd = _startPriceUsd;
                 Logger.WriteExtra($"{priceItem.Date} get to the submarine, countdown ({priceItem.Price:F2})");
             }
         }
