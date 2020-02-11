@@ -6,7 +6,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using NeedleBot.Helpers;
 using Newtonsoft.Json.Linq;
 
 namespace NeedleBot {

@@ -15,15 +15,16 @@ namespace NeedleBot.Models
             _history = history;
             DetectDuration = TimeSpan.FromMinutes(1);
             AverageDuration = TimeSpan.FromDays(1);
+            ThresholdSpeedMin = 10;
             WalletUsd = 0;
             TradeVolumeUsd = 100;
             Mode = ModeEnum.BTC;
             ExchangeFeePercent = 0.2;
             ZeroProfitPriceUsd = 0;
-            BollingerBandsD = 4;
-            StopUsd = 40;
+            BollingerBandsD = 5;
+            StopUsd = 90;
             OrderStopMarginPercent = 0.05; //TODO
-            AvgBufferLength = 20;
+            AvgBufferLength = 30;
         }
 
         public TimeSpan DetectDuration { get; set; }
@@ -37,6 +38,7 @@ namespace NeedleBot.Models
         public double BollingerBandsD { get; set; }
         public double StopUsd { get; set; }
         public double OrderStopMarginPercent { get; set; }
+        public double ThresholdSpeedMin { get; set; }
         public int AvgBufferLength { get; set; }
 
         public async Task<IOrderResult> SellBtc(double priceUsd, double volumeBtc)

@@ -32,7 +32,7 @@ namespace NeedleBot
             var historyPre = new History("predata.json", "data1h");
             var trade =
                 new Trade(new LocalConfig(historyPre));
-            Logger.LogLevel = LogLevel.Debug;
+            //Logger.LogLevel = LogLevel.Debug;
             //var startDate = new DateTimeOffset(2019, 7, 1, 0, 0, 0, TimeSpan.Zero);
             //var endDate = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero);
             //await history.LoadPrices(startDate, endDate).ConfigureAwait(false);
@@ -44,32 +44,42 @@ namespace NeedleBot
             Console.SetOut(TextWriter.Null);
 
             var bollingerBands = 10D;
-            var stopPercent = 50;
-            var total = bollingerBands * stopPercent*2;
+            var stopUsd = 90;
+            var total = bollingerBands * (stopUsd -10);
             var current = 0;
 
             var history = new History(fileName);
-            var historyPre = new History("pre" + fileName, "data1h");
+            var historyPre = new History("pre" + fileName);
 
             var analysis = new ConcurrentBag<Tuple<double, double, double, int, int>>();
             var tasks = new List<Task>();
 
             async Task FuncStopPrice(double i)
             {
-                for (double j = 1; j <= stopPercent; j++)
+                for (double j = 10; j <= stopUsd; j++)
                 {
-                    var trade = new Trade(new LocalConfig(historyPre) { BollingerBandsD = i, StopUsd = j });
-
-                    var profit = await TradeTask(history, trade, true);
-                    analysis.Add(
-                        new Tuple<double, double, double, int, int>(i, j, profit, trade.SellCount, trade.BuyCount));
-
-                    Interlocked.Increment(ref current);
-                    Console.Title = $"Calculating... {100 * current / total:F1}%";
+                    var trade = new Trade(new LocalConfig(historyPre) {BollingerBandsD = i, StopUsd = j});
+                    double profit = 0;
+                    try
+                    {
+                        profit = await TradeTask(history, trade, true);
+                    }
+                    catch
+                    {
+                        profit = -100500;
+                    }
+                    finally
+                    {
+                        analysis.Add(
+                            new Tuple<double, double, double, int, int>(i, j, profit, trade.SellCount,
+                                trade.BuyCount));
+                        Interlocked.Increment(ref current);
+                        Console.Title = $"Calculating... {100 * current / total:F1}%";
+                    }
                 }
             }
 
-            for (var i = 0.5; i <= bollingerBands; i+=0.5)
+            for (var i = 1; i <= bollingerBands; i++)
             {
                 var iLocal = i;
                 var task = Task.Run(() => FuncStopPrice(iLocal));
