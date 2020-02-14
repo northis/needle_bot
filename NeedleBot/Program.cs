@@ -29,9 +29,8 @@ namespace NeedleBot
         static async Task ProcessHistorySingle()
         {
             var history = new History("data.json");
-            var historyPre = new History("predata.json", "data1h");
-            var trade =
-                new Trade(new LocalConfig(historyPre));
+            var historyPre = new History("predata.json", "data1m");
+            var trade = new Trade(new LocalConfig(historyPre));
             //Logger.LogLevel = LogLevel.Debug;
             //var startDate = new DateTimeOffset(2019, 7, 1, 0, 0, 0, TimeSpan.Zero);
             //var endDate = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero);
@@ -43,9 +42,9 @@ namespace NeedleBot
         {
             Console.SetOut(TextWriter.Null);
 
-            var bollingerBands = 10D;
+            var speedActivateValue = 20D;
             var stopUsd = 90;
-            var total = bollingerBands * (stopUsd -10);
+            var total = speedActivateValue * (stopUsd -10);
             var current = 0;
 
             var history = new History(fileName);
@@ -58,7 +57,7 @@ namespace NeedleBot
             {
                 for (double j = 10; j <= stopUsd; j++)
                 {
-                    var trade = new Trade(new LocalConfig(historyPre) {BollingerBandsD = i, StopUsd = j});
+                    var trade = new Trade(new LocalConfig(historyPre) {StopUsd = j, SpeedActivateValue = i});
                     double profit = 0;
                     try
                     {
@@ -79,7 +78,7 @@ namespace NeedleBot
                 }
             }
 
-            for (var i = 1; i <= bollingerBands; i++)
+            for (var i = 1; i <= speedActivateValue; i++)
             {
                 var iLocal = i;
                 var task = Task.Run(() => FuncStopPrice(iLocal));

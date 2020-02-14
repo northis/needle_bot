@@ -13,33 +13,26 @@ namespace NeedleBot.Models
         public LocalConfig(History history)
         {
             _history = history;
-            DetectDuration = TimeSpan.FromMinutes(1);
-            AverageDuration = TimeSpan.FromDays(1);
-            ThresholdSpeedMin = 10;
             WalletUsd = 0;
+            DetectDuration = TimeSpan.FromMinutes(1);
             TradeVolumeUsd = 100;
             Mode = ModeEnum.BTC;
             ExchangeFeePercent = 0.2;
             ZeroProfitPriceUsd = 0;
-            BollingerBandsD = 5;
-            StopUsd = 90;
-            OrderStopMarginPercent = 0.05; //TODO
-            AvgBufferLength = 30;
+            StopUsd = 70;
+            SpeedBufferLength = 2;
+            SpeedActivateValue = 17;
         }
-
-        public TimeSpan DetectDuration { get; set; }
-        public TimeSpan AverageDuration { get; set; }
         public double WalletBtc { get; set; }
         public double WalletUsd { get; set; }
         public double TradeVolumeUsd { get; set; }
         public double ZeroProfitPriceUsd { get; set; }
         public ModeEnum Mode { get; set; }
         public double ExchangeFeePercent { get; set; }
-        public double BollingerBandsD { get; set; }
+        public TimeSpan DetectDuration { get; set; }
         public double StopUsd { get; set; }
-        public double OrderStopMarginPercent { get; set; }
-        public double ThresholdSpeedMin { get; set; }
-        public int AvgBufferLength { get; set; }
+        public int SpeedBufferLength { get; set; }
+        public double SpeedActivateValue { get; set; }
 
         public async Task<IOrderResult> SellBtc(double priceUsd, double volumeBtc)
         {

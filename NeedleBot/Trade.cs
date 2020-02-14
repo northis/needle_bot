@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NeedleBot.Dto;
@@ -26,13 +25,11 @@ namespace NeedleBot
                 return 0;
             }
         }
-
-        public double AvgPrice { get; private set; }
+        public double Speed { get; private set; }
         public ModeEnum Mode { get; set; }
         public int SellCount { get; private set; }
         public int BuyCount { get; private set; }
-        public Queue<double> AvgBuffer { get; }
-        public Queue<PriceItem> AvgCandleBuffer { get; }
+        public Queue<PriceItem> SpeedBuffer { get; }
 
         public StateEnum State
         {
@@ -49,11 +46,10 @@ namespace NeedleBot
 
         private double _startPriceUsd;
         private double _stopPriceUsd;
+        private DateTimeOffset _startSpeedDate;
         private PriceItem _currentPriceItem;
-        private PriceItem _prevPriceItem;
         private DateTimeOffset _startDate;
         private StateEnum _state;
-        private double _sigma;
         private readonly SemaphoreSlim _semaphoreSlim = new SemaphoreSlim(1, 1);
         public event EventHandler OnStateChanged;
 
@@ -63,135 +59,104 @@ namespace NeedleBot
             State = StateEnum.INIT;
             Mode = config.Mode;
 
-            AvgBuffer = new Queue<double>();
-            AvgCandleBuffer = new Queue<PriceItem>();
+            SpeedBuffer = new Queue<PriceItem>();
         }
 
         private const double MINIMAL_PROFIT = 0.1;
+
+        private TimeSpan PriceDirectionDuration => _currentPriceItem.Date - _startSpeedDate;
 
         private void SetDefaultState()
         {
             State = Mode == ModeEnum.BTC ? StateEnum.BTC_DEF : StateEnum.USD_DEF;
         }
 
-        private double GetSpeed(double priceEnd, DateTime dateEnd)
-        {
-            var duration = (dateEnd - _startDate).TotalSeconds;
-            if (duration > 0)
-            {
-                var diff = priceEnd - _startPriceUsd;
-                return diff / duration;
-            }
-
-            return 0;
-        }
-
         private void SetPrice(PriceItem priceItem)
         {
-            _prevPriceItem = _currentPriceItem;
             _currentPriceItem = priceItem;
 
-            if (AvgBuffer.Count > 0)
-                AvgPrice = AvgBuffer.Average();
-            else if (AvgCandleBuffer.Count > 0)
-                AvgPrice = AvgCandleBuffer.Average(a => a.Price);
-            else
-                AvgPrice = priceItem.Price;
-
-            if (AvgCandleBuffer.Count == 0 || priceItem.Date - AvgCandleBuffer.Peek().Date < Config.AverageDuration)
+            if (SpeedBuffer.Count >= Config.SpeedBufferLength)
             {
-                AvgCandleBuffer.Enqueue(priceItem);
+                SpeedBuffer.Dequeue();
             }
-            else
+
+            SpeedBuffer.Enqueue(_currentPriceItem);
+
+            var first = SpeedBuffer.Peek();
+            var period = _currentPriceItem.Date - first.Date;
+
+            if (period != TimeSpan.Zero)
             {
-                AvgBuffer.Enqueue(AvgCandleBuffer.Average(a => a.Price));
-                if (AvgBuffer.Count > Config.AvgBufferLength)
+                var oldSpeed = Speed;
+                Speed = (_currentPriceItem.Price - first.Price) / period.TotalMinutes;
+
+                if (Speed * oldSpeed < 0)
                 {
-                    AvgBuffer.Dequeue();
+                    _startSpeedDate = _currentPriceItem.Date;
                 }
-
-                AvgCandleBuffer.Clear();
             }
-
-            if (AvgBuffer.Count > 0)
+            if (Math.Abs(Speed) > Config.SpeedActivateValue)
             {
-                var diffSquSum = AvgBuffer.Sum(a => (a - AvgPrice) * (a - AvgPrice));
-                _sigma = Config.BollingerBandsD * Math.Sqrt(diffSquSum / AvgBuffer.Count);
-            }
-            else
-            {
-                var diffSquSum = AvgCandleBuffer.Sum(a => (a.Price - AvgPrice) * (a.Price - AvgPrice));
-                _sigma = Config.BollingerBandsD * Math.Sqrt(diffSquSum / AvgCandleBuffer.Count);
+                Logger.WriteExtra($"{_currentPriceItem.Date}; Speed {Speed:F2} USD/min",
+                    ConsoleColor.White);
             }
         }
 
-        private double GetSpeed()
+        private void LaunchTheRocket()
         {
-            if (_currentPriceItem == null || _prevPriceItem == null)
-                return 0;
+            State = StateEnum.UP_SPEED;
+            _stopPriceUsd = SpeedBuffer.Peek().Price;
 
-            var duration = (_currentPriceItem.Date - _prevPriceItem.Date).TotalMinutes;
-            if (duration > 0)
-            {
-                var diff = _currentPriceItem.Price - _prevPriceItem.Price;
-                return diff / duration;
-            }
+            Logger.WriteExtra($"{_currentPriceItem.Date} enter the rocket, countdown ({_currentPriceItem.Price:F2}, speed {Speed:F2})");
+        }
 
-            return 0;
+        private void DiveTheSubmarine()
+        {
+            State = StateEnum.DOWN_SPEED;
+            _stopPriceUsd = SpeedBuffer.Peek().Price;
+
+            Logger.WriteExtra(
+                $"{_currentPriceItem.Date} get to the submarine, countdown ({_currentPriceItem.Price:F2}, speed {Speed:F2})");
         }
 
         private void ProcessSpeed()
         {
-            var speed = GetSpeed();
-
-            if (Mode == ModeEnum.BTC && (_currentPriceItem.Price > Config.ZeroProfitPriceUsd || _currentPriceItem.Price > AvgPrice + _sigma))
+            if (Mode == ModeEnum.BTC && Speed > Config.SpeedActivateValue)
             {
-                State = StateEnum.UP_SPEED;
-                _stopPriceUsd = _startPriceUsd;
-
-                Logger.WriteExtra($"{_currentPriceItem.Date} enter the rocket, countdown ({_currentPriceItem.Price:F2})");
+                LaunchTheRocket();
             }
-            else if (Mode == ModeEnum.USD && _currentPriceItem.Price < AvgPrice - _sigma)
+            else if (Mode == ModeEnum.USD && Speed < -Config.SpeedActivateValue && PriceDirectionDuration > TimeSpan.FromMinutes(3))
             {
-                State = StateEnum.DOWN_SPEED;
-                _stopPriceUsd = _startPriceUsd;
-                Logger.WriteExtra(
-                    $"{_currentPriceItem.Date} get to the submarine, countdown ({_currentPriceItem.Price:F2})");
+                DiveTheSubmarine();
             }
         }
 
         private async Task FixProfitUp()
         {
-            if (InstantProfitUsd > MINIMAL_PROFIT)
+            Logger.WriteMain(
+                $"{_currentPriceItem.Date} fix the profit ${InstantProfitUsd:F2} USD ({_currentPriceItem.Price:F2} USD)",
+                ConsoleColor.Green);
+
+            var res = await Config.SellBtc(_currentPriceItem.Price, Config.WalletBtc)
+                .ConfigureAwait(false);
+            if (!res.IsOrderSet)
             {
-                Logger.WriteMain(
-                    $"{_currentPriceItem.Date} fix the profit ${InstantProfitUsd:F2} USD ({_currentPriceItem.Price:F2} USD)",
-                    ConsoleColor.Green);
-
-                var res = await Config.SellBtc(_currentPriceItem.Price, Config.WalletBtc)
-                    .ConfigureAwait(false);
-                if (!res.IsOrderSet)
-                {
-                    SetDefaultState();
-                    return;
-                }
-
-                Config.WalletUsd = res.WalletUsd;
-                Config.WalletBtc = res.WalletBtc;
-                Mode = ModeEnum.USD;
-                SellCount++;
-                Logger.WriteMain($"WalletUsd: {Config.WalletUsd:F2}; WalletBtc: {Config.WalletBtc:F5}; SellCount: {SellCount}\n");
+                SetDefaultState();
+                return;
             }
+
+            Config.WalletUsd = res.WalletUsd;
+            Config.WalletBtc = res.WalletBtc;
+            Mode = ModeEnum.USD;
+            SellCount++;
+            Logger.WriteMain($"WalletUsd: {Config.WalletUsd:F2}; WalletBtc: {Config.WalletBtc:F5}; SellCount: {SellCount}\n");
 
             SetDefaultState();
         }
         
         private async Task EnterToBtc()
         {
-            if (Config.TradeVolumeUsd > Config.WalletUsd)
-            {
-                throw new Exception("Where is the money, Lebowski?");
-            }
+            CheckTheBalance();
 
             var isMoneyEnough = Config.WalletUsd > Config.TradeVolumeUsd + FromExchangeFee(Config.TradeVolumeUsd);
 
@@ -213,54 +178,21 @@ namespace NeedleBot
                 BuyCount++;
 
                 Logger.WriteMain($"WalletUsd: {Config.WalletUsd:F2}; WalletBtc: {Config.WalletBtc:F5}; BuyCount: {BuyCount}\n");
+
+                LaunchTheRocket();
+                return;
             }
 
             SetDefaultState();
         }
 
-        private bool UpdateTrailUp()
-        {
-            var price = _currentPriceItem.Price;
-            if (price > _stopPriceUsd + Config.StopUsd)
-            {
-                _stopPriceUsd = price - Config.StopUsd;
-                return true;
-            }
-
-            if (price > _stopPriceUsd)
-            {
-                return true;
-            }
-
-            return false;
-        }
-
-        private bool UpdateTrailDown()
-        {
-            var price = _currentPriceItem.Price;
-            if (price < _stopPriceUsd - Config.StopUsd || _stopPriceUsd <= 0)
-            {
-                _stopPriceUsd = price + Config.StopUsd;
-                return true;
-            }
-
-            if (price < _stopPriceUsd)
-            {
-                return true;
-            }
-
-            return false;
-        }
-
         private async Task DecideInner(PriceItem priceItem)
         {
-            SetPrice(priceItem);
-
             if (State == StateEnum.INIT)
             {
                 var end = priceItem.Date.AddMinutes(-1);
                 var avgSumDuration = TimeSpan.FromMinutes(
-                    Config.AverageDuration.TotalMinutes * Config.AvgBufferLength);
+                    Config.DetectDuration.TotalMinutes * Config.SpeedBufferLength);
 
                 var history = await Config.GetHistory(end.Add(-avgSumDuration), end);
 
@@ -269,6 +201,7 @@ namespace NeedleBot
                     SetPrice(historyItem);
                 }
             }
+            SetPrice(priceItem);
 
             switch (State)
             {
@@ -292,49 +225,76 @@ namespace NeedleBot
                     return;
 
                 case StateEnum.UP_SPEED:
-                    if (priceItem.Price < _startPriceUsd - _sigma)
+                    var dateUp = _currentPriceItem.Date;
+                    var priceUp = _currentPriceItem.Price;
+                    var canFixProfit = InstantProfitUsd > MINIMAL_PROFIT;
+
+                    if (priceUp <= _stopPriceUsd && !canFixProfit)
                     {
                         Logger.WriteExtra(
-                            $"{priceItem.Date} ok, cancel the launch, price ${priceItem.Price:F2} is lower than {_startPriceUsd:F2}");
+                            $"{dateUp} ok, cancel the launch, price ${priceUp:F2} is lower than {_stopPriceUsd:F2} and we haven't profit enough");
                         SetDefaultState();
                         return;
                     }
 
-                    if (!UpdateTrailUp())
+                    if (_stopPriceUsd < priceUp - Config.StopUsd)
                     {
-                        var diff = _stopPriceUsd - _startPriceUsd;
-
-                        Logger.WriteExtra(
-                            $"{priceItem.Date} SELL: {_startPriceUsd:F2}->{_stopPriceUsd:F2} ({diff:F2})\t{InstantProfitUsd:F2}$\t({_startDate})",
-                            ConsoleColor.DarkGreen);
-
-                        await FixProfitUp().ConfigureAwait(false);
+                        _stopPriceUsd = priceUp - Config.StopUsd;
+                        return;
                     }
 
+                    if (priceUp > _stopPriceUsd)
+                    {
+                        return;
+                    }
+                    var diffUp = priceUp - _startPriceUsd;
+
+                    Logger.WriteExtra(
+                        $"{dateUp} SELL: {_startPriceUsd:F2}->{priceUp:F2} ({diffUp:F2})\t{InstantProfitUsd:F2}$\t({_startDate})",
+                        ConsoleColor.DarkGreen);
+
+                    await FixProfitUp().ConfigureAwait(false);
                     return;
 
                 case StateEnum.DOWN_SPEED:
-                    if (priceItem.Price > _startPriceUsd + _sigma)
+                    var priceDown = _currentPriceItem.Price;
+                    var dateDown = _currentPriceItem.Date;
+
+                    //if (Speed > 0)
+                    //{
+                    //    Logger.WriteExtra(
+                    //        $"{dateDown} ok, cancel the dive, price ${priceDown:F2} is higher than {Config.ZeroProfitPriceUsd:F2}");
+                    //    SetDefaultState();
+                    //    return;
+                    //}
+
+                    if (_stopPriceUsd > priceDown + Config.StopUsd)
                     {
-                        Logger.WriteExtra(
-                            $"{priceItem.Date} ok, cancel the dive, price ${priceItem.Price:F2} is higher than {_startPriceUsd:F2}");
-                        SetDefaultState();
+                        _stopPriceUsd = priceDown + Config.StopUsd;
                         return;
                     }
 
-                    var gotTrail = !UpdateTrailDown();
-                    if (gotTrail)
+                    if (priceDown < _stopPriceUsd)
                     {
-                        var diff = _stopPriceUsd - _startPriceUsd;
-
-                        Logger.WriteExtra(
-                            $"{priceItem.Date} BUY: {_startPriceUsd:F2}->{_stopPriceUsd:F2} ({diff:F2})\t({_startDate})",
-                            ConsoleColor.DarkRed);
-
-                        await EnterToBtc().ConfigureAwait(false);
+                        return;
                     }
 
+                    var diffDown = priceDown - _startPriceUsd;
+
+                    Logger.WriteExtra(
+                        $"{dateDown} BUY: {_startPriceUsd:F2}->{priceDown:F2} ({diffDown:F2})\t({_startDate})",
+                        ConsoleColor.DarkRed);
+
+                    await EnterToBtc().ConfigureAwait(false);
                     return;
+            }
+        }
+
+        private void CheckTheBalance()
+        {
+            if (Config.TradeVolumeUsd > Config.WalletUsd)
+            {
+                throw new Exception("Where is the money, Lebowski?");
             }
         }
 
