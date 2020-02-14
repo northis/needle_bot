@@ -8,7 +8,7 @@ namespace NeedleBot.Dto {
     [DataContract]
     public class PriceItem
     {
-        public double Price => (Low + Open + High + Close) / 4;
+        public double Price => Close;
 
         [DataMember]
         [JsonProperty("l")]

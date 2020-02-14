@@ -18,7 +18,7 @@ namespace NeedleBot
             //{
             //    ProcessHistoryBatch($"2019{i:D2}.json");
             //}
-            //ProcessHistoryBatch("data.json");
+            //ProcessHistoryBatch("2020.json");
             ProcessHistorySingle().ConfigureAwait(false).GetAwaiter().GetResult();
             // AnalyzeReport();
             Console.ReadLine();
@@ -28,12 +28,12 @@ namespace NeedleBot
 
         static async Task ProcessHistorySingle()
         {
-            var history = new History("data.json");
-            var historyPre = new History("predata.json", "data1m");
+            var history = new History("202002.json");
+            var historyPre = new History("pre202002.json", "data1m");
             var trade = new Trade(new LocalConfig(historyPre));
-            //Logger.LogLevel = LogLevel.Debug;
-            //var startDate = new DateTimeOffset(2019, 7, 1, 0, 0, 0, TimeSpan.Zero);
-            //var endDate = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero);
+            //Logger.LogLevel = LogLevel.Extra;
+            //var startDate = new DateTimeOffset(2020, 2, 1, 0, 0, 0, TimeSpan.Zero);
+            //var endDate = new DateTimeOffset(2020, 2, 14, 0, 0, 0, TimeSpan.Zero);
             //await history.LoadPrices(startDate, endDate).ConfigureAwait(false);
             await TradeTask(history, trade, true);
         }

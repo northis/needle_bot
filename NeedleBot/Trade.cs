@@ -125,7 +125,9 @@ namespace NeedleBot
             {
                 LaunchTheRocket();
             }
-            else if (Mode == ModeEnum.USD && Speed < -Config.SpeedActivateValue && PriceDirectionDuration > TimeSpan.FromMinutes(3))
+            else if (Mode == ModeEnum.USD && 
+                     Speed < -Config.SpeedActivateValue * Config.DownRatio &&
+                     PriceDirectionDuration > Config.OneDirectionSpeedDuration)
             {
                 DiveTheSubmarine();
             }
@@ -292,7 +294,7 @@ namespace NeedleBot
 
         private void CheckTheBalance()
         {
-            if (Config.TradeVolumeUsd > Config.WalletUsd)
+            if (Config.TradeVolumeUsd - Config.WalletUsd > 0.1)
             {
                 throw new Exception("Where is the money, Lebowski?");
             }
