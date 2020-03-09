@@ -8,9 +8,7 @@ namespace NeedleBot.Interfaces
     public interface IConfig
     {
         TimeSpan DetectDuration { get; set; }
-        TimeSpan OneDirectionSpeedDuration { get; set; }
         public double DownRatio { get; set; }
-        public double StopUsd { get; set; }
         public int SpeedBufferLength { get; set; }
         double WalletBtc { get; set; }
         double WalletUsd { get; set; }

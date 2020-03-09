@@ -18,22 +18,21 @@ namespace NeedleBot
             //{
             //    ProcessHistoryBatch($"2019{i:D2}.json");
             //}
-            //ProcessHistoryBatch("2020.json");
+            //ProcessHistoryBatch("202002.json");
+            //Logger.LogLevel = LogLevel.Debug;
             ProcessHistorySingle().ConfigureAwait(false).GetAwaiter().GetResult();
             // AnalyzeReport();
             Console.ReadLine();
         }
-
-        private const string REPORT_FILE = "report.txt";
-
+        
         static async Task ProcessHistorySingle()
         {
-            var history = new History("202002.json");
-            var historyPre = new History("pre202002.json", "data1m");
+            var history = new History("20206m.json");
+            var historyPre = new History("pre20206m.json", "data1m");
             var trade = new Trade(new LocalConfig(historyPre));
             //Logger.LogLevel = LogLevel.Extra;
-            //var startDate = new DateTimeOffset(2020, 2, 1, 0, 0, 0, TimeSpan.Zero);
-            //var endDate = new DateTimeOffset(2020, 2, 14, 0, 0, 0, TimeSpan.Zero);
+            //var startDate = new DateTimeOffset(2019, 9, 8, 0, 0, 0, TimeSpan.Zero);
+            //var endDate = new DateTimeOffset(2020, 3, 7, 0, 0, 0, TimeSpan.Zero);
             //await history.LoadPrices(startDate, endDate).ConfigureAwait(false);
             await TradeTask(history, trade, true);
         }
@@ -43,8 +42,8 @@ namespace NeedleBot
             Console.SetOut(TextWriter.Null);
 
             var speedActivateValue = 20D;
-            var stopUsd = 90;
-            var total = speedActivateValue * (stopUsd -10);
+            var bufCount = 20;
+            var total = speedActivateValue * (bufCount-1);
             var current = 0;
 
             var history = new History(fileName);
@@ -55,9 +54,9 @@ namespace NeedleBot
 
             async Task FuncStopPrice(double i)
             {
-                for (double j = 10; j <= stopUsd; j++)
+                for (var j = 2; j <= bufCount; j++)
                 {
-                    var trade = new Trade(new LocalConfig(historyPre) {StopUsd = j, SpeedActivateValue = i});
+                    var trade = new Trade(new LocalConfig(historyPre) {SpeedActivateValue = i, SpeedBufferLength = j});
                     double profit = 0;
                     try
                     {

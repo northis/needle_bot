@@ -13,17 +13,15 @@ namespace NeedleBot.Models
         public LocalConfig(History history)
         {
             _history = history;
-            WalletUsd = 0;
-            DetectDuration = TimeSpan.FromMinutes(1);
-            OneDirectionSpeedDuration = TimeSpan.FromMinutes(1);
+            WalletUsd = 101;
+            DetectDuration = TimeSpan.FromHours(1);
             DownRatio = 3;
             TradeVolumeUsd = 100;
-            Mode = ModeEnum.BTC;
+            Mode = ModeEnum.USD;
             ExchangeFeePercent = 0.2;
             ZeroProfitPriceUsd = 0;
-            StopUsd = 70;
             SpeedBufferLength = 2;
-            SpeedActivateValue = 6;
+            SpeedActivateValue = 2;
         }
         public double DownRatio { get; set; }
         public double WalletBtc { get; set; }
@@ -33,8 +31,6 @@ namespace NeedleBot.Models
         public ModeEnum Mode { get; set; }
         public double ExchangeFeePercent { get; set; }
         public TimeSpan DetectDuration { get; set; }
-        public TimeSpan OneDirectionSpeedDuration { get; set; }
-        public double StopUsd { get; set; }
         public int SpeedBufferLength { get; set; }
         public double SpeedActivateValue { get; set; }
 
