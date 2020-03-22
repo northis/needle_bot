@@ -2,11 +2,11 @@
 {
     public interface IOrderResult
     {
-        double PriceUsd { get; set; }
-        double VolumeUsd { get; set; }
-        double VolumeBtc { get; set; }
-        double WalletBtc { get; set; }
-        double WalletUsd { get; set; }
+        decimal PriceUsd { get; set; }
+        decimal VolumeUsd { get; set; }
+        decimal VolumeBtc { get; set; }
+        decimal WalletBtc { get; set; }
+        decimal WalletUsd { get; set; }
         bool IsOrderSet { get; set; }
     }
 }

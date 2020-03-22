@@ -8,17 +8,17 @@ namespace NeedleBot.Interfaces
     public interface IConfig
     {
         TimeSpan DetectDuration { get; set; }
-        public double DownRatio { get; set; }
+        public decimal DownRatio { get; set; }
         public int SpeedBufferLength { get; set; }
-        double WalletBtc { get; set; }
-        double WalletUsd { get; set; }
-        double TradeVolumeUsd { get; set; }
-        double ZeroProfitPriceUsd { get; set; }
+        decimal WalletBtc { get; set; }
+        decimal WalletUsd { get; set; }
+        decimal TradeVolumeUsd { get; set; }
+        decimal ZeroProfitPriceUsd { get; set; }
         ModeEnum Mode { get; set; }
-        double ExchangeFeePercent { get; set; }
-        public double SpeedActivateValue { get; set; }
-        Task<IOrderResult> SellBtc(double priceUsd, double volumeBtc);
-        Task<IOrderResult> BuyBtc(double price, double volumeUsd);
+        decimal ExchangeFeePercent { get; set; }
+        public decimal SpeedActivateValue { get; set; }
+        Task<IOrderResult> SellBtc(decimal priceUsd, decimal volumeBtc);
+        Task<IOrderResult> BuyBtc(decimal price, decimal volumeUsd);
         Task<PriceItem[]> GetHistory(DateTimeOffset start, DateTimeOffset end);
     }
 }

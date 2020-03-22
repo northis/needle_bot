@@ -12,7 +12,7 @@ namespace NeedleBot
     {
         public IConfig Config { get; }
 
-        public double InstantProfitUsd
+        public decimal InstantProfitUsd
         {
             get
             {
@@ -34,7 +34,7 @@ namespace NeedleBot
             }
         }
 
-        public double Speed { get; private set; }
+        public decimal Speed { get; private set; }
         public ModeEnum Mode { get; set; }
         public int SellCount { get; private set; }
         public int BuyCount { get; private set; }
@@ -53,8 +53,8 @@ namespace NeedleBot
             }
         }
 
-        private double _startPriceUsd;
-        private double _stopPriceUsd;
+        private decimal _startPriceUsd;
+        private decimal _stopPriceUsd;
         private PriceItem _currentPriceItem;
         private DateTimeOffset _startDate;
         private StateEnum _state;
@@ -70,7 +70,7 @@ namespace NeedleBot
             SpeedBuffer = new Queue<PriceItem>();
         }
 
-        private const double MINIMAL_PROFIT = 0.1;
+        private const decimal MINIMAL_PROFIT = 0.1M;
 
         private void SetDefaultState()
         {
@@ -89,15 +89,15 @@ namespace NeedleBot
             SpeedBuffer.Enqueue(_currentPriceItem);
 
             var first = SpeedBuffer.Peek();
-            var period = _currentPriceItem.Date - first.Date;
+            var period = _currentPriceItem.DateTime - first.DateTime;
 
             if (period != TimeSpan.Zero)
             {
-                Speed = (_currentPriceItem.Price - first.Price) / period.TotalMinutes;
+                Speed = (_currentPriceItem.Price - first.Price) / (decimal) period.TotalMinutes;
             }
             if (Math.Abs(Speed) > Config.SpeedActivateValue)
             {
-                Logger.WriteExtra($"{_currentPriceItem.Date}; Speed {Speed:F2} USD/min",
+                Logger.WriteExtra($"{_currentPriceItem.DateTime}; Speed {Speed:F2} USD/min",
                     ConsoleColor.White);
             }
         }
@@ -107,7 +107,7 @@ namespace NeedleBot
             State = StateEnum.UP_SPEED;
             _stopPriceUsd = SpeedBuffer.Peek().Price;
 
-            Logger.WriteExtra($"{_currentPriceItem.Date} enter the rocket, countdown ({_currentPriceItem.Price:F2}, speed {Speed:F2})");
+            Logger.WriteExtra($"{_currentPriceItem.DateTime} enter the rocket, countdown ({_currentPriceItem.Price:F2}, speed {Speed:F2})");
         }
 
         private void DiveTheSubmarine()
@@ -116,7 +116,7 @@ namespace NeedleBot
             _stopPriceUsd = SpeedBuffer.Peek().Price;
 
             Logger.WriteExtra(
-                $"{_currentPriceItem.Date} get to the submarine, countdown ({_currentPriceItem.Price:F2}, speed {Speed:F2})");
+                $"{_currentPriceItem.DateTime} get to the submarine, countdown ({_currentPriceItem.Price:F2}, speed {Speed:F2})");
         }
 
         private void ProcessSpeed()
@@ -135,7 +135,7 @@ namespace NeedleBot
         private async Task FixProfitUp()
         {
             Logger.WriteMain(
-                $"{_currentPriceItem.Date} fix the profit ${InstantProfitUsd:F2} USD ({_currentPriceItem.Price:F2} USD)",
+                $"{_currentPriceItem.DateTime} fix the profit ${InstantProfitUsd:F2} USD ({_currentPriceItem.Price:F2} USD)",
                 ConsoleColor.Green);
 
             var res = await Config.SellBtc(_currentPriceItem.Price, Config.WalletBtc)
@@ -163,7 +163,7 @@ namespace NeedleBot
 
             if (isMoneyEnough)
             {
-                Logger.WriteMain($"{_currentPriceItem.Date} buy BTC for ${_currentPriceItem.Price:F2} USD", ConsoleColor.Red);
+                Logger.WriteMain($"{_currentPriceItem.DateTime} buy BTC for ${_currentPriceItem.Price:F2} USD", ConsoleColor.Red);
                 var res = await Config.BuyBtc(_currentPriceItem.Price, Config.TradeVolumeUsd)
                     .ConfigureAwait(false);
                 if (!res.IsOrderSet)
@@ -191,7 +191,7 @@ namespace NeedleBot
         {
             if (State == StateEnum.INIT)
             {
-                var end = priceItem.Date.AddMinutes(-1);
+                var end = priceItem.DateTime.AddMinutes(-1);
                 var avgSumDuration = TimeSpan.FromMinutes(
                     Config.DetectDuration.TotalMinutes * Config.SpeedBufferLength);
 
@@ -209,7 +209,7 @@ namespace NeedleBot
                 case StateEnum.NO_DATA:
                 case StateEnum.ERROR:
                     _startPriceUsd = priceItem.Price;
-                    _startDate = priceItem.Date;
+                    _startDate = priceItem.DateTime;
                     State = StateEnum.INIT;
                     return;
 
@@ -221,12 +221,12 @@ namespace NeedleBot
                     ProcessSpeed();
 
                     _startPriceUsd = priceItem.Price;
-                    _startDate = priceItem.Date;
+                    _startDate = priceItem.DateTime;
 
                     return;
 
                 case StateEnum.UP_SPEED:
-                    var dateUp = _currentPriceItem.Date;
+                    var dateUp = _currentPriceItem.DateTime;
                     var priceUp = _currentPriceItem.Price;
                     var canFixProfit = InstantProfitUsd > MINIMAL_PROFIT;
 
@@ -252,7 +252,7 @@ namespace NeedleBot
 
                 case StateEnum.DOWN_SPEED:
                     var priceDown = _currentPriceItem.Price;
-                    var dateDown = _currentPriceItem.Date;
+                    var dateDown = _currentPriceItem.DateTime;
                     canFixProfit = //InstantProfitUsd > MINIMAL_PROFIT || 
                                    Config.ZeroProfitPriceUsd < 1;
 
@@ -280,7 +280,7 @@ namespace NeedleBot
 
         private void CheckTheBalance()
         {
-            if (Config.TradeVolumeUsd - Config.WalletUsd > 0.1)
+            if (Config.TradeVolumeUsd - Config.WalletUsd > 0.1M)
             {
                 throw new Exception("Where is the money, Lebowski?");
             }
@@ -288,7 +288,7 @@ namespace NeedleBot
 
         public async Task Decide(PriceItem priceItem)
         {
-            if (priceItem.Date == default)
+            if (priceItem.DateTime == default)
             {
                 Logger.WriteMain("dateTime isn't set");
                 State = StateEnum.ERROR;
@@ -306,11 +306,11 @@ namespace NeedleBot
             {
                 Logger.WriteMain("setting the integration values");
                 _startPriceUsd = priceItem.Price;
-                _startDate = priceItem.Date;
+                _startDate = priceItem.DateTime;
             }
             else
             {
-                if (_currentPriceItem != null && priceItem.Date - _currentPriceItem.Date < Config.DetectDuration)
+                if (_currentPriceItem != null && priceItem.DateTime - _currentPriceItem.DateTime < Config.DetectDuration)
                     return;
             }
 
@@ -325,12 +325,12 @@ namespace NeedleBot
             }
         }
 
-        private double FromPercent(double percent, double mainValue)
+        private decimal FromPercent(decimal percent, decimal mainValue)
         {
             return mainValue * percent / 100;
         }
 
-        private double FromExchangeFee(double mainValue)
+        private decimal FromExchangeFee(decimal mainValue)
         {
             return FromPercent(Config.ExchangeFeePercent, mainValue);
         }

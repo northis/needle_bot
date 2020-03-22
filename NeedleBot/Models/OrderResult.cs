@@ -4,11 +4,11 @@ namespace NeedleBot.Models
 {
     public class OrderResult : IOrderResult
     {
-        public double PriceUsd { get; set; }
-        public double VolumeUsd { get; set; }
-        public double VolumeBtc { get; set; }
-        public double WalletBtc { get; set; }
-        public double WalletUsd { get; set; }
+        public decimal PriceUsd { get; set; }
+        public decimal VolumeUsd { get; set; }
+        public decimal VolumeBtc { get; set; }
+        public decimal WalletBtc { get; set; }
+        public decimal WalletUsd { get; set; }
         public bool IsOrderSet { get; set; }
     }
 }

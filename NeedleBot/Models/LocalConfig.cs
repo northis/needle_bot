@@ -18,23 +18,23 @@ namespace NeedleBot.Models
             DownRatio = 3;
             TradeVolumeUsd = 100;
             Mode = ModeEnum.USD;
-            ExchangeFeePercent = 0.2;
+            ExchangeFeePercent = 0.2M;
             ZeroProfitPriceUsd = 0;
             SpeedBufferLength = 2;
             SpeedActivateValue = 2;
         }
-        public double DownRatio { get; set; }
-        public double WalletBtc { get; set; }
-        public double WalletUsd { get; set; }
-        public double TradeVolumeUsd { get; set; }
-        public double ZeroProfitPriceUsd { get; set; }
+        public decimal DownRatio { get; set; }
+        public decimal WalletBtc { get; set; }
+        public decimal WalletUsd { get; set; }
+        public decimal TradeVolumeUsd { get; set; }
+        public decimal ZeroProfitPriceUsd { get; set; }
         public ModeEnum Mode { get; set; }
-        public double ExchangeFeePercent { get; set; }
+        public decimal ExchangeFeePercent { get; set; }
         public TimeSpan DetectDuration { get; set; }
         public int SpeedBufferLength { get; set; }
-        public double SpeedActivateValue { get; set; }
+        public decimal SpeedActivateValue { get; set; }
 
-        public async Task<IOrderResult> SellBtc(double priceUsd, double volumeBtc)
+        public async Task<IOrderResult> SellBtc(decimal priceUsd, decimal volumeBtc)
         {
            return await Task.Run(() =>
            {
@@ -54,7 +54,7 @@ namespace NeedleBot.Models
            });
         }
 
-        public async Task<IOrderResult> BuyBtc(double price, double volumeUsd)
+        public async Task<IOrderResult> BuyBtc(decimal price, decimal volumeUsd)
         {
             return await Task.Run(() =>
             {

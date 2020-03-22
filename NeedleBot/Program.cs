@@ -20,9 +20,14 @@ namespace NeedleBot
             //}
             //ProcessHistoryBatch("202002.json");
             //Logger.LogLevel = LogLevel.Debug;
-            ProcessHistorySingle().ConfigureAwait(false).GetAwaiter().GetResult();
+            //ProcessHistorySingle().ConfigureAwait(false).GetAwaiter().GetResult();
             // AnalyzeReport();
+
+            var importer = new CexImporter();
+
+            var res = importer.ImportAsync("btc", new DateTime(2020, 3, 1, 0, 0, 0)).Result;
             Console.ReadLine();
+
         }
         
         static async Task ProcessHistorySingle()
@@ -49,15 +54,15 @@ namespace NeedleBot
             var history = new History(fileName);
             var historyPre = new History("pre" + fileName);
 
-            var analysis = new ConcurrentBag<Tuple<double, double, double, int, int>>();
+            var analysis = new ConcurrentBag<Tuple<decimal, decimal, decimal, int, int>>();
             var tasks = new List<Task>();
 
-            async Task FuncStopPrice(double i)
+            async Task FuncStopPrice(decimal i)
             {
                 for (var j = 2; j <= bufCount; j++)
                 {
                     var trade = new Trade(new LocalConfig(historyPre) {SpeedActivateValue = i, SpeedBufferLength = j});
-                    double profit = 0;
+                    decimal profit = 0;
                     try
                     {
                         profit = await TradeTask(history, trade, true);
@@ -69,7 +74,7 @@ namespace NeedleBot
                     finally
                     {
                         analysis.Add(
-                            new Tuple<double, double, double, int, int>(i, j, profit, trade.SellCount,
+                            new Tuple<decimal, decimal, decimal, int, int>(i, j, profit, trade.SellCount,
                                 trade.BuyCount));
                         Interlocked.Increment(ref current);
                         Console.Title = $"Calculating... {100 * current / total:F1}%";
@@ -97,7 +102,7 @@ namespace NeedleBot
             Console.Title = "Done";
         }
 
-        static async Task<double> TradeTask(History history, Trade trade, bool autoSetZeroPrice = false)
+        static async Task<decimal> TradeTask(History history, Trade trade, bool autoSetZeroPrice = false)
         {
             //trade.OnStateChanged += Trade_OnStateChanged;
             var prices = history.GetPrices();

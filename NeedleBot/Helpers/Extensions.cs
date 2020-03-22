@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Linq;
-using Newtonsoft.Json.Linq;
-
 namespace NeedleBot.Helpers
 {
     public static class Extensions

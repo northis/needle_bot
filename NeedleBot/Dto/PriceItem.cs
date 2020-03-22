@@ -2,37 +2,43 @@ using System;
 using System.Runtime.Serialization;
 using NeedleBot.Helpers;
 using Newtonsoft.Json;
+using Trady.Core.Infrastructure;
 
 namespace NeedleBot.Dto {
 
     [DataContract]
-    public class PriceItem
+    public class PriceItem : IOhlcv
     {
-        public double Price => Close;
-
-        [DataMember]
-        [JsonProperty("l")]
-        [JsonConverter(typeof(DoubleConverter))]
-        public double Low { get; set; }
-
-        [DataMember]
-        [JsonProperty("h")]
-        [JsonConverter(typeof(DoubleConverter))]
-        public double High { get; set; }
-
-        [DataMember]
-        [JsonProperty("o")]
-        [JsonConverter(typeof(DoubleConverter))]
-        public double Open { get; set; }
-
-        [DataMember]
-        [JsonProperty("c")]
-        [JsonConverter(typeof(DoubleConverter))]
-        public double Close { get; set; }
+        public decimal Price => Close;
 
         [DataMember]
         [JsonProperty("t")]
         [JsonConverter(typeof(DateConverter))]
-        public DateTimeOffset Date { get; set; }
+        public DateTimeOffset DateTime { get; set; }
+
+        [DataMember]
+        [JsonProperty("o")]
+        [JsonConverter(typeof(DoubleConverter))]
+        public decimal Open { get; set; }
+
+        [DataMember]
+        [JsonProperty("h")]
+        [JsonConverter(typeof(DoubleConverter))]
+        public decimal High { get; set; }
+
+        [DataMember]
+        [JsonProperty("l")]
+        [JsonConverter(typeof(DoubleConverter))]
+        public decimal Low { get; set; }
+
+        [DataMember]
+        [JsonProperty("c")]
+        [JsonConverter(typeof(DoubleConverter))]
+        public decimal Close { get; set; }
+
+        [DataMember]
+        [JsonProperty("v")]
+        [JsonConverter(typeof(DoubleConverter))]
+        public decimal Volume { get; set; }
     }
 }

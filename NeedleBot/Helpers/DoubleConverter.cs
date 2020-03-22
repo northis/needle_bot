@@ -21,10 +21,10 @@ namespace NeedleBot.Helpers
             return val;
         }
 
-        public static double StringToDouble(string str)
+        public static decimal StringToDouble(string str)
         {
             var tokenStr = str.Replace(",", ".");
-            double.TryParse(tokenStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double d);
+            decimal.TryParse(tokenStr, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal d);
             return d;
         }
 

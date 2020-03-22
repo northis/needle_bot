@@ -8,6 +8,9 @@
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
     <PackageReference Include="RestSharp" Version="106.6.10" />
+    <PackageReference Include="Trady.Analysis" Version="3.2.8" />
+    <PackageReference Include="Trady.Core" Version="3.2.9" />
+    <PackageReference Include="Trady.Importer" Version="3.2.0" />
   </ItemGroup>
 
 </Project>
